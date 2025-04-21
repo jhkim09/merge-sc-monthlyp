@@ -31,7 +31,8 @@ async def merge_sc_monthlyp(background_tasks: BackgroundTasks, file: UploadFile 
         if sheet1 is None:
             return {"error": "Sheet1 시트를 찾을 수 없습니다."}
 
-        rival_df = pd.read_excel(temp_input_path, sheet_name="Rival")
+        # Rival 시트에서 실제 컬럼 헤더가 있는 27행을 기준으로 로딩
+        rival_df = pd.read_excel(temp_input_path, sheet_name="Rival", header=26)
 
         sheet1.columns = [str(c).strip() for c in sheet1.columns]
         code_col = next((col for col in sheet1.columns if col.strip().lower() == 'code'), None)
@@ -65,7 +66,7 @@ async def merge_sc_monthlyp(background_tasks: BackgroundTasks, file: UploadFile 
 
                     if code and code in code_to_p and total_col_name in person_data:
                         col_index = start + list(rival_columns[start:end]).index(total_col_name)
-                        excel_row = idx + 2
+                        excel_row = idx + 28  # 실제 엑셀 기준 행 번호 보정
                         excel_col = col_index + 1
                         ws.cell(row=excel_row, column=excel_col).value = code_to_p[code]
                         ws.cell(row=excel_row, column=excel_col).fill = yellow_fill
