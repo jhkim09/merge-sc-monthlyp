@@ -1,5 +1,5 @@
 from fastapi import FastAPI, File, UploadFile, BackgroundTasks
-from fastapi.responses import FileResponse
+from fastapi.responses import StreamingResponse
 import pandas as pd
 import shutil
 import os
@@ -7,6 +7,7 @@ from uuid import uuid4
 from openpyxl import load_workbook
 from openpyxl.styles import PatternFill
 import logging
+from io import BytesIO
 
 # Logger 설정
 logging.basicConfig(level=logging.INFO)
@@ -18,7 +19,6 @@ app = FastAPI()
 async def merge_sc_monthlyp(background_tasks: BackgroundTasks, file: UploadFile = File(...)):
     unique_id = uuid4().hex
     temp_input_path = f"/tmp/{unique_id}_{file.filename}"
-    temp_output_path = f"/tmp/merged_{unique_id}_{file.filename}"
 
     with open(temp_input_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
@@ -52,6 +52,8 @@ async def merge_sc_monthlyp(background_tasks: BackgroundTasks, file: UploadFile 
         ws = wb["Rival"]
         yellow_fill = PatternFill(start_color="FFFF00", end_color="FFFF00", fill_type="solid")
 
+        updated_count = 0
+
         for idx, row in rival_df.fillna("").iterrows():
             row_values = row.astype(str).tolist()
             target_code = str(row[rival_code_col]).strip()
@@ -66,18 +68,24 @@ async def merge_sc_monthlyp(background_tasks: BackgroundTasks, file: UploadFile 
                             value_to_set = code_to_p[target_code]
                             ws.cell(row=excel_row, column=col_index).value = value_to_set
                             ws.cell(row=excel_row, column=col_index).fill = yellow_fill
+                            updated_count += 1
                             break
                 else:
                     logger.warning(f"❌ 코드 없음: {target_code}")
 
-        wb.save(temp_output_path)
-        background_tasks.add_task(cleanup_files, [temp_input_path, temp_output_path])
+        logger.info(f"✅ 총 {updated_count}개의 Total 셀이 업데이트되었습니다.")
 
-        return FileResponse(
-            temp_output_path,
+        # 메모리에 저장
+        output = BytesIO()
+        wb.save(output)
+        output.seek(0)
+
+        background_tasks.add_task(cleanup_files, [temp_input_path])
+
+        return StreamingResponse(
+            output,
             media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-            filename=f"merged_{file.filename}",
-            background=background_tasks
+            headers={"Content-Disposition": f"attachment; filename=merged_{file.filename}"}
         )
 
     except Exception as e:
