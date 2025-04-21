@@ -21,9 +21,9 @@ async def merge_sc_monthlyp(background_tasks: BackgroundTasks, file: UploadFile 
     try:
         excel_data = pd.read_excel(temp_input_path, sheet_name=None)
         sheet1 = excel_data.get("Sheet1")
-        rival = excel_data.get("Rival")
+        rival_df = excel_data.get("Rival")
 
-        if sheet1 is None or rival is None:
+        if sheet1 is None or rival_df is None:
             return {"error": "Sheet1 또는 Rival 시트가 존재하지 않습니다."}
 
         sheet1.columns = [str(c).strip() for c in sheet1.columns]
@@ -35,35 +35,31 @@ async def merge_sc_monthlyp(background_tasks: BackgroundTasks, file: UploadFile 
         sheet1[code_col] = sheet1[code_col].astype(str)
         code_to_p = sheet1.set_index(code_col)["월초P(KRW)"].to_dict()
 
-        rival.columns = [str(c).strip() for c in rival.columns]
-        rival_code_col = next((col for col in rival.columns if '코드' in col or 'Code' in col), None)
+        rival_df.columns = [str(c).strip() for c in rival_df.columns]
+        rival_code_col = next((col for col in rival_df.columns if '코드' in col or 'Code' in col), None)
         if not rival_code_col:
             return {"error": "Rival 시트에 '코드' 또는 'Code' 컬럼이 없습니다."}
 
-        rival_filled = rival.fillna("")
-        updated_cells = []
+        wb = load_workbook(temp_input_path)
+        if "Rival" not in wb.sheetnames:
+            return {"error": "엑셀 파일에 'Rival' 시트가 없습니다."}
 
-        for idx, row in rival_filled.iterrows():
+        ws = wb["Rival"]
+        yellow_fill = PatternFill(start_color="FFFF00", end_color="FFFF00", fill_type="solid")
+
+        for idx, row in rival_df.fillna("").iterrows():
             row_values = row.astype(str).tolist()
             target_code = str(row[rival_code_col]).strip()
 
             if any("total" in str(v).strip().lower() for v in row_values) and target_code in code_to_p:
-                for col in rival.columns:
+                for col in rival_df.columns:
                     if str(row[col]).strip().lower() == "total":
+                        col_index = rival_df.columns.get_loc(col) + 1
+                        excel_row = idx + 2
                         value_to_set = code_to_p[target_code]
-                        rival.at[idx, col] = value_to_set
-                        updated_cells.append((idx, col, value_to_set))
+                        ws.cell(row=excel_row, column=col_index).value = value_to_set
+                        ws.cell(row=excel_row, column=col_index).fill = yellow_fill
                         break
-
-        wb = load_workbook(temp_input_path)
-        if "Rival" in wb.sheetnames:
-            ws = wb["Rival"]
-            yellow_fill = PatternFill(start_color="FFFF00", end_color="FFFF00", fill_type="solid")
-            for idx, col_name, value in updated_cells:
-                col_index = rival.columns.get_loc(col_name) + 1
-                excel_row = idx + 2
-                ws.cell(row=excel_row, column=col_index).value = value
-                ws.cell(row=excel_row, column=col_index).fill = yellow_fill
 
         wb.save(temp_output_path)
         background_tasks.add_task(cleanup_files, [temp_input_path, temp_output_path])
