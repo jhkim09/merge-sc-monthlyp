@@ -31,7 +31,6 @@ async def merge_sc_monthlyp(background_tasks: BackgroundTasks, file: UploadFile 
         if sheet1 is None:
             return {"error": "Sheet1 시트를 찾을 수 없습니다."}
 
-        # Rival 시트에서 실제 컬럼 헤더가 있는 27행을 기준으로 로딩
         rival_df = pd.read_excel(temp_input_path, sheet_name="Rival", header=26)
 
         sheet1.columns = [str(c).strip() for c in sheet1.columns]
@@ -52,38 +51,26 @@ async def merge_sc_monthlyp(background_tasks: BackgroundTasks, file: UploadFile 
 
         updated_count = 0
 
-        rival_columns = rival_df.columns.tolist()
         for idx, row in rival_df.iterrows():
-            for i in range(2):
-                try:
-                    start = i * (len(rival_columns) // 2)
-                    end = (i + 1) * (len(rival_columns) // 2)
-                    person_data = row.iloc[start:end]
-                    person_data.index = rival_columns[start:end]  # 컬럼명 붙이기
+            # 좌측 인원: 열 I(8) ~ O(14)
+            left_code = normalize_code(row.iloc[8])
+            if left_code in code_to_p:
+                ws.cell(row=idx + 28, column=15).value = code_to_p[left_code]  # O열 = 15
+                ws.cell(row=idx + 28, column=15).fill = yellow_fill
+                updated_count += 1
+                print(f"[MATCH-LEFT] Code: {left_code} → {code_to_p[left_code]}")
+            else:
+                print(f"[MISS-LEFT] Code: {left_code}")
 
-                    code_key = next((k for k in person_data.keys() if '코드' in str(k).lower() or 'code' in str(k).lower()), None)
-                    total_key = next((k for k in person_data.keys() if 'total' in str(k).lower()), None)
-
-                    code = normalize_code(person_data.get(code_key, "")) if code_key else ""
-
-                    if code and code in code_to_p and total_key:
-                        try:
-                            col_index = start + list(rival_columns[start:end]).index(total_key)
-                        except ValueError:
-                            print(f"[SKIP] Could not find Total column in current block")
-                            continue
-
-                        excel_row = idx + 28  # 실제 엑셀 기준 행 번호 보정
-                        excel_col = col_index + 1
-
-                        ws.cell(row=excel_row, column=excel_col).value = code_to_p[code]
-                        ws.cell(row=excel_row, column=excel_col).fill = yellow_fill
-                        updated_count += 1
-                        print(f"[MATCH] Code: '{code}' → {code_to_p[code]} @ col {excel_col}")
-                    else:
-                        print(f"[MISS]  Code not found or missing Total column: '{code}'")
-                except Exception as e:
-                    print(f"[ERROR] Row {idx}, Person {i}: {e}")
+            # 우측 인원: 열 R(17) ~ X(23)
+            right_code = normalize_code(row.iloc[20])
+            if right_code in code_to_p:
+                ws.cell(row=idx + 28, column=24).value = code_to_p[right_code]  # X열 = 24
+                ws.cell(row=idx + 28, column=24).fill = yellow_fill
+                updated_count += 1
+                print(f"[MATCH-RIGHT] Code: {right_code} → {code_to_p[right_code]}")
+            else:
+                print(f"[MISS-RIGHT] Code: {right_code}")
 
         print(f"[RESULT] Total updated cells: {updated_count}")
 
