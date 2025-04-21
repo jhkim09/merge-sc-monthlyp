@@ -56,7 +56,7 @@ async def merge_sc_monthlyp(background_tasks: BackgroundTasks, file: UploadFile 
                     for col in rival.columns:
                         if str(row[col]).strip() == "Total":
                             rival.at[idx, col] = code_to_p[target_code]
-                            updated_cells.append((idx, col))
+                            updated_cells.append((idx, col, code_to_p[target_code]))
                             break
                 codes = []  # 다음 사람 준비
 
@@ -65,10 +65,10 @@ async def merge_sc_monthlyp(background_tasks: BackgroundTasks, file: UploadFile 
         if "Rival" in wb.sheetnames:
             ws = wb["Rival"]
             yellow_fill = PatternFill(start_color="FFFF00", end_color="FFFF00", fill_type="solid")
-            for idx, col_name in updated_cells:
+            for idx, col_name, value in updated_cells:
                 col_index = rival.columns.get_loc(col_name) + 1
                 excel_row = idx + 2  # header + 1 indexing
-                ws.cell(row=excel_row, column=col_index).value = code_to_p.get(codes[0], "")
+                ws.cell(row=excel_row, column=col_index).value = value
                 ws.cell(row=excel_row, column=col_index).fill = yellow_fill
 
         wb.save(temp_output_path)
