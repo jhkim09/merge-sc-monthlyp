@@ -53,6 +53,8 @@ async def merge_sc_monthlyp(background_tasks: BackgroundTasks, file: UploadFile 
         sheet1[code_col] = sheet1[code_col].apply(normalize_code)
         code_to_p = sheet1.set_index(code_col)["월초P(KRW)"].to_dict()
 
+        print(f"[DEBUG] code_to_p keys (sample): {list(code_to_p.keys())[:10]}")
+
         rival_df.columns = [str(c).strip() for c in rival_df.columns]
         rival_code_col = next((col for col in rival_df.columns if '코드' in col or 'Code' in col), None)
         if not rival_code_col:
@@ -70,6 +72,7 @@ async def merge_sc_monthlyp(background_tasks: BackgroundTasks, file: UploadFile 
         for idx, row in rival_df.fillna("").iterrows():
             row_values = row.astype(str).tolist()
             target_code = normalize_code(row[rival_code_col])
+            print(f"[DEBUG] target_code: {target_code}")
 
             if any("total" in str(v).strip().lower() for v in row_values):
                 if target_code in code_to_p:
