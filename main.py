@@ -63,7 +63,8 @@ async def merge_sc_monthlyp(background_tasks: BackgroundTasks, file: UploadFile 
 
         for idx, row in rival_df.fillna("").iterrows():
             row_values = row.astype(str).tolist()
-            target_code = str(row[rival_code_col]).strip()
+            raw_code = row[rival_code_col]
+            target_code = str(int(raw_code)).strip() if isinstance(raw_code, float) else str(raw_code).strip()
 
             if any("total" in str(v).strip().lower() for v in row_values):
                 if target_code in code_to_p:
