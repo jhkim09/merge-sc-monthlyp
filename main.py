@@ -45,9 +45,10 @@ async def merge_sc_monthlyp(background_tasks: BackgroundTasks, file: UploadFile 
         rival_df = pd.read_excel(temp_input_path, sheet_name="Rival", header=header_row_index)
 
         sheet1.columns = [str(c).strip() for c in sheet1.columns]
-        code_col = next((col for col in sheet1.columns if '코드' in col or 'Code' in col), None)
-        if not code_col:
-            return {"error": "Sheet1에 'Code' 또는 '코드' 컬럼이 없습니다."}
+        # 정확히 'Code' 컬럼만 지정
+        code_col = "Code"
+        if code_col not in sheet1.columns:
+            return {"error": "Sheet1에 'Code' 컬럼이 없습니다."}
 
         sheet1 = sheet1.dropna(subset=[code_col, "월초P(KRW)"]).copy()
         sheet1[code_col] = sheet1[code_col].apply(normalize_code)
