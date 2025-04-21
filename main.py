@@ -73,11 +73,14 @@ async def merge_sc_monthlyp(background_tasks: BackgroundTasks, file: UploadFile 
         for idx, row in rival_df.fillna("").iterrows():
             row_values = row.astype(str).tolist()
             target_code = normalize_code(row[rival_code_col])
-            print(f"[DEBUG] target_code: {target_code}")
+            if not target_code:
+                print(f"[SKIP] Empty code at row {idx}")
+                continue
+            print(f"[DEBUG] target_code: '{target_code}'")
 
             if any("total" in str(v).strip().lower() for v in row_values):
                 if target_code in code_to_p:
-                    print(f"[MATCH] Code: {target_code} → {code_to_p[target_code]}")
+                    print(f"[MATCH] Code: '{target_code}' → {code_to_p[target_code]}")
                     for col in rival_df.columns:
                         if str(row[col]).strip().lower() == "total":
                             col_index = rival_df.columns.get_loc(col) + 1
@@ -88,7 +91,7 @@ async def merge_sc_monthlyp(background_tasks: BackgroundTasks, file: UploadFile 
                             updated_count += 1
                             break
                 else:
-                    print(f"[MISS]  Code not found: {target_code}")
+                    print(f"[MISS]  Code not found: '{target_code}'")
 
         print(f"[RESULT] Total updated cells: {updated_count}")
 
