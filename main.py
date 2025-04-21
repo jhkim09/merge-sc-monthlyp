@@ -8,7 +8,7 @@ from uuid import uuid4
 app = FastAPI()
 
 @app.post("/merge-sc-monthlyp/")
-async def merge_sc_monthlyp(file: UploadFile = File(...), background_tasks: BackgroundTasks):
+async def merge_sc_monthlyp(background_tasks: BackgroundTasks, file: UploadFile = File(...)):
     # 임시 파일 이름 생성
     unique_id = uuid4().hex
     temp_input_path = f"/tmp/{unique_id}_{file.filename}"
