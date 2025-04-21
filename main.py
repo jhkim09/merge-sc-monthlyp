@@ -54,8 +54,8 @@ async def merge_sc_monthlyp(background_tasks: BackgroundTasks, file: UploadFile 
         updated_count = 0
 
         for idx, row in rival_df.iterrows():
-            left_code = normalize_code(row.iloc[8])
-            right_code = normalize_code(row.iloc[17])
+            left_code = normalize_code(row["코드"] if "코드" in row else row.iloc[8])
+            right_code = normalize_code(row["코드.1"] if "코드.1" in row else row.iloc[17])
             left_value = code_to_p.get(left_code)
             right_value = code_to_p.get(right_code)
 
@@ -72,11 +72,11 @@ async def merge_sc_monthlyp(background_tasks: BackgroundTasks, file: UploadFile 
             if left_value is not None and right_value is not None:
                 if left_value > right_value:
                     ws.cell(row=idx + 28, column=15).font = red_font
-                    winner_name = row.get("FSR")
+                    winner_name = str(row.get("FSR") or "").strip()
                     debug_note = f"{left_value} > {right_value}"
                 elif right_value > left_value:
                     ws.cell(row=idx + 28, column=24).font = red_font
-                    winner_name = row.get("FSR.1")
+                    winner_name = str(row.get("FSR.1") or "").strip()
                     debug_note = f"{right_value} > {left_value}"
                 else:
                     debug_note = f"{left_value} = {right_value}"
