@@ -22,33 +22,48 @@ async def merge_sc_monthlyp(background_tasks: BackgroundTasks, file: UploadFile 
         # 엑셀 파일 읽기
         excel_data = pd.read_excel(temp_input_path, sheet_name=None)
         sheet1 = excel_data.get("Sheet1")
-        sheet2 = excel_data.get("Sheet2")
+        rival = excel_data.get("Rival")
 
-        if sheet1 is None or sheet2 is None:
-            return {"error": "Sheet1 또는 Sheet2가 존재하지 않습니다."}
+        if sheet1 is None or rival is None:
+            return {"error": "Sheet1 또는 Rival 시트가 존재하지 않습니다."}
 
-        # 필수 컬럼 확인
-        expected_cols = ["Code", "SC", "월초P(KRW)"]
-        missing = [col for col in expected_cols if col not in sheet1.columns]
-        if missing:
-            return {"error": f"Sheet1에 다음 컬럼이 없습니다: {missing}"}
-
-        # Code 컬럼을 문자열로 변환 (병합 오류 방지)
+        # Code, 월초P 정보 딕셔너리로 구성
+        sheet1 = sheet1.dropna(subset=["Code", "월초P(KRW)"])
         sheet1["Code"] = sheet1["Code"].astype(str)
-        sheet2["Code"] = sheet2["Code"].astype(str)
+        code_to_p = sheet1.set_index("Code")["월초P(KRW)"].to_dict()
 
-        # 필요한 컬럼만 추출
-        sheet1_filtered = sheet1[["Code", "SC", "월초P(KRW)"]]
-        sheet1_filtered = sheet1_filtered.rename(columns={"월초P(KRW)": "월초P"})
+        # Rival 시트 처리
+        rival_filled = rival.fillna("")
+        updated_rows = 0
+        codes = []
 
-        # Sheet2와 병합
-        merged = pd.merge(sheet2, sheet1_filtered, on="Code", how="left")
+        for idx, row in rival_filled.iterrows():
+            row_values = row.astype(str).tolist()
 
-        # 결과를 Sheet2로 저장
+            if any("본부" in v for v in row_values):
+                codes = []  # 새로운 인물 시작
+
+            # 코드 수집
+            for val in row_values:
+                if val.strip().isdigit():
+                    codes.append(val.strip())
+
+            if any("Total" in v for v in row_values) and codes:
+                target_code = codes[0]  # 첫 번째 코드만 기준으로 사용
+                if target_code in code_to_p:
+                    for col in rival.columns:
+                        if str(row[col]).strip() == "Total":
+                            rival.at[idx, col] = code_to_p[target_code]
+                            updated_rows += 1
+                            break
+                codes = []  # 다음 사람 준비
+
+        # 저장
         with pd.ExcelWriter(temp_output_path, engine="openpyxl") as writer:
-            merged.to_excel(writer, sheet_name="Sheet2", index=False)
+            sheet1.to_excel(writer, sheet_name="Sheet1", index=False)
+            rival.to_excel(writer, sheet_name="Rival", index=False)
 
-        # 백그라운드로 임시 파일 삭제 등록
+        # 삭제 예약
         background_tasks.add_task(cleanup_files, [temp_input_path, temp_output_path])
 
         return FileResponse(
