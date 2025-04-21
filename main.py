@@ -35,12 +35,13 @@ async def merge_sc_monthlyp(background_tasks: BackgroundTasks, file: UploadFile 
 
         sheet1.columns = [str(c).strip() for c in sheet1.columns]
         code_col = next((col for col in sheet1.columns if col.strip().lower() == 'code'), None)
-        if not code_col:
-            return {"error": "Sheet1에 정확한 'Code' 컬럼이 없습니다."}
+        monthlyp_col = next((col for col in sheet1.columns if '월초p' in col.strip().lower()), None)
+        if not code_col or not monthlyp_col:
+            return {"error": "Sheet1에 'Code' 또는 '월초P' 컬럼이 없습니다."}
 
-        sheet1 = sheet1.dropna(subset=[code_col, "월초P(KRW)"]).copy()
+        sheet1 = sheet1.dropna(subset=[code_col, monthlyp_col]).copy()
         sheet1[code_col] = sheet1[code_col].apply(normalize_code)
-        code_to_p = sheet1.set_index(code_col)["월초P(KRW)"].to_dict()
+        code_to_p = sheet1.set_index(code_col)[monthlyp_col].to_dict()
 
         wb = load_workbook(temp_input_path)
         if "Rival" not in wb.sheetnames:
