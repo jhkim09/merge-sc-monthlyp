@@ -36,12 +36,14 @@ async def merge_sc_monthlyp(background_tasks: BackgroundTasks, file: UploadFile 
         sheet1.columns = [str(c).strip() for c in sheet1.columns]
         code_col = next((col for col in sheet1.columns if col.strip().lower() == 'code'), None)
         monthlyp_col = next((col for col in sheet1.columns if '월초p' in col.strip().lower()), None)
-        if not code_col or not monthlyp_col:
-            return {"error": "Sheet1에 'Code' 또는 '월초P' 컬럼이 없습니다."}
+        lump_col = next((col for col in sheet1.columns if '일시납' in col.strip().lower()), None)
+        if not code_col or not monthlyp_col or not lump_col:
+            return {"error": "Sheet1에 'Code', '월초P', 또는 '일시납' 컬럼이 없습니다."}
 
-        sheet1 = sheet1.dropna(subset=[code_col, monthlyp_col]).copy()
+        sheet1 = sheet1.dropna(subset=[code_col, monthlyp_col, lump_col]).copy()
         sheet1[code_col] = sheet1[code_col].apply(normalize_code)
-        code_to_p = sheet1.set_index(code_col)[monthlyp_col].to_dict()
+        sheet1["total_calc"] = sheet1[monthlyp_col] + (sheet1[lump_col] / 200)
+        code_to_p = sheet1.set_index(code_col)["total_calc"].to_dict()
 
         wb = load_workbook(temp_input_path)
         if "Rival" not in wb.sheetnames:
@@ -59,7 +61,6 @@ async def merge_sc_monthlyp(background_tasks: BackgroundTasks, file: UploadFile 
             left_value = code_to_p.get(left_code)
             right_value = code_to_p.get(right_code)
 
-            # 좌측 Total = O열 (15), 우측 Total = X열 (24)
             if left_value is not None:
                 ws.cell(row=idx + 28, column=15).value = left_value
                 ws.cell(row=idx + 28, column=15).fill = yellow_fill
@@ -82,9 +83,9 @@ async def merge_sc_monthlyp(background_tasks: BackgroundTasks, file: UploadFile 
                     debug_note = f"{left_value} = {right_value}"
 
             if winner_name:
-                ws.cell(row=idx + 28, column=25).value = winner_name  # Y열 = 25
+                ws.cell(row=idx + 28, column=25).value = winner_name
             if debug_note:
-                ws.cell(row=idx + 28, column=26).value = debug_note   # Z열 = 26
+                ws.cell(row=idx + 28, column=26).value = debug_note
 
             if left_value is not None:
                 updated_count += 1
