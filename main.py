@@ -42,8 +42,10 @@ async def merge_sc_monthlyp(background_tasks: BackgroundTasks, file: UploadFile 
 
         sheet1 = sheet1.dropna(subset=[code_col, monthlyp_col, lump_col]).copy()
         sheet1[code_col] = sheet1[code_col].apply(normalize_code)
-        sheet1["total_calc"] = sheet1[monthlyp_col] + (sheet1[lump_col] / 200)
+        sheet1["lump_bonus"] = sheet1[lump_col] / 200
+        sheet1["total_calc"] = sheet1[monthlyp_col] + sheet1["lump_bonus"]
         code_to_p = sheet1.set_index(code_col)["total_calc"].to_dict()
+        code_to_bonus = sheet1.set_index(code_col)["lump_bonus"].to_dict()
 
         wb = load_workbook(temp_input_path)
         if "Rival" not in wb.sheetnames:
@@ -60,6 +62,8 @@ async def merge_sc_monthlyp(background_tasks: BackgroundTasks, file: UploadFile 
             right_code = normalize_code(row["코드.1"] if "코드.1" in row else row.iloc[17])
             left_value = code_to_p.get(left_code)
             right_value = code_to_p.get(right_code)
+            left_bonus = code_to_bonus.get(left_code)
+            right_bonus = code_to_bonus.get(right_code)
 
             if left_value is not None:
                 ws.cell(row=idx + 28, column=15).value = left_value
@@ -67,6 +71,12 @@ async def merge_sc_monthlyp(background_tasks: BackgroundTasks, file: UploadFile 
             if right_value is not None:
                 ws.cell(row=idx + 28, column=24).value = right_value
                 ws.cell(row=idx + 28, column=24).fill = yellow_fill
+
+            # AA열: 27번 열에 일시납/200 표시
+            if left_bonus is not None:
+                ws.cell(row=idx + 28, column=27).value = left_bonus
+            if right_bonus is not None:
+                ws.cell(row=idx + 28, column=28).value = right_bonus
 
             winner_name = None
             debug_note = ""
