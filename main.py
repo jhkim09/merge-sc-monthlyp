@@ -67,11 +67,24 @@ async def merge_sc_monthlyp(background_tasks: BackgroundTasks, file: UploadFile 
                 ws.cell(row=idx + 28, column=24).value = right_value
                 ws.cell(row=idx + 28, column=24).fill = yellow_fill
 
+            winner_name = None
+            debug_note = ""
             if left_value is not None and right_value is not None:
                 if left_value > right_value:
                     ws.cell(row=idx + 28, column=15).font = red_font
+                    winner_name = row.get("FSR")
+                    debug_note = f"{left_value} > {right_value}"
                 elif right_value > left_value:
                     ws.cell(row=idx + 28, column=24).font = red_font
+                    winner_name = row.get("FSR.1")
+                    debug_note = f"{right_value} > {left_value}"
+                else:
+                    debug_note = f"{left_value} = {right_value}"
+
+            if winner_name:
+                ws.cell(row=idx + 28, column=25).value = winner_name  # Y열 = 25
+            if debug_note:
+                ws.cell(row=idx + 28, column=26).value = debug_note   # Z열 = 26
 
             if left_value is not None:
                 updated_count += 1
