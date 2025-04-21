@@ -52,7 +52,7 @@ async def merge_sc_monthlyp(background_tasks: BackgroundTasks, file: UploadFile 
         updated_count = 0
 
         for idx, row in rival_df.iterrows():
-            # 좌측 인원: 열 I(8) ~ O(14)
+            # 좌측 인원: 열 I(8), Total = O(14)
             left_code = normalize_code(row.iloc[8])
             if left_code in code_to_p:
                 ws.cell(row=idx + 28, column=15).value = code_to_p[left_code]  # O열 = 15
@@ -62,8 +62,8 @@ async def merge_sc_monthlyp(background_tasks: BackgroundTasks, file: UploadFile 
             else:
                 print(f"[MISS-LEFT] Code: {left_code}")
 
-            # 우측 인원: 열 R(17) ~ X(23)
-            right_code = normalize_code(row.iloc[20])
+            # 우측 인원: 열 R(17), Code = R(17), Total = X(24)
+            right_code = normalize_code(row.iloc[17])
             if right_code in code_to_p:
                 ws.cell(row=idx + 28, column=24).value = code_to_p[right_code]  # X열 = 24
                 ws.cell(row=idx + 28, column=24).fill = yellow_fill
