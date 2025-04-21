@@ -61,8 +61,14 @@ async def merge_sc_monthlyp(background_tasks: BackgroundTasks, file: UploadFile 
                     person_data = row.iloc[start:end]
                     person_data.index = rival_columns[start:end]  # 컬럼명 붙이기
 
+                    print(f"[DEBUG] Person {i} columns: {rival_columns[start:end]}")
+
                     code = normalize_code(person_data.get("Code", ""))
+                    print(f"[DEBUG] Code value: '{code}'")
+                    print(f"[DEBUG] Is in code_to_p: {code in code_to_p}")
+
                     total_col_name = "Total"
+                    print(f"[DEBUG] Total exists: {total_col_name in person_data}")
 
                     if code and code in code_to_p and total_col_name in person_data:
                         col_index = start + list(rival_columns[start:end]).index(total_col_name)
