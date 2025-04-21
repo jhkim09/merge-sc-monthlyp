@@ -21,10 +21,21 @@ async def merge_sc_monthlyp(background_tasks: BackgroundTasks, file: UploadFile 
     try:
         excel_data = pd.read_excel(temp_input_path, sheet_name=None)
         sheet1 = excel_data.get("Sheet1")
-        rival_df = excel_data.get("Rival")
+        if sheet1 is None:
+            return {"error": "Sheet1 시트를 찾을 수 없습니다."}
 
-        if sheet1 is None or rival_df is None:
-            return {"error": "Sheet1 또는 Rival 시트가 존재하지 않습니다."}
+        # Rival 시트에서 컬럼 행 자동 탐색
+        temp_df = pd.read_excel(temp_input_path, sheet_name="Rival", header=None)
+        header_row_index = None
+        for i, row in temp_df.iterrows():
+            if any(str(cell).strip().lower() in ["코드", "code"] for cell in row):
+                header_row_index = i
+                break
+
+        if header_row_index is None:
+            return {"error": "Rival 시트에서 '코드' 또는 'Code' 컬럼을 찾을 수 없습니다."}
+
+        rival_df = pd.read_excel(temp_input_path, sheet_name="Rival", header=header_row_index)
 
         sheet1.columns = [str(c).strip() for c in sheet1.columns]
         code_col = next((col for col in sheet1.columns if '코드' in col or 'Code' in col), None)
@@ -59,7 +70,7 @@ async def merge_sc_monthlyp(background_tasks: BackgroundTasks, file: UploadFile 
                     for col in rival_df.columns:
                         if str(row[col]).strip().lower() == "total":
                             col_index = rival_df.columns.get_loc(col) + 1
-                            excel_row = idx + 2
+                            excel_row = idx + header_row_index + 2
                             value_to_set = code_to_p[target_code]
                             ws.cell(row=excel_row, column=col_index).value = value_to_set
                             ws.cell(row=excel_row, column=col_index).fill = yellow_fill
