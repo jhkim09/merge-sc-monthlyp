@@ -1,4 +1,4 @@
-from fastapi import FastAPI, File, UploadFile
+from fastapi import FastAPI, File, UploadFile, BackgroundTasks
 from fastapi.responses import FileResponse
 import pandas as pd
 import shutil
@@ -8,7 +8,7 @@ from uuid import uuid4
 app = FastAPI()
 
 @app.post("/merge-sc-monthlyp/")
-async def merge_sc_monthlyp(file: UploadFile = File(...)):
+async def merge_sc_monthlyp(file: UploadFile = File(...), background_tasks: BackgroundTasks):
     # 임시 파일 이름 생성
     unique_id = uuid4().hex
     temp_input_path = f"/tmp/{unique_id}_{file.filename}"
@@ -38,16 +38,19 @@ async def merge_sc_monthlyp(file: UploadFile = File(...)):
         with pd.ExcelWriter(temp_output_path, engine="openpyxl") as writer:
             merged.to_excel(writer, sheet_name="Sheet2", index=False)
 
+        # 백그라운드로 임시 파일 삭제 등록
+        background_tasks.add_task(cleanup_files, [temp_input_path, temp_output_path])
+
         return FileResponse(
             temp_output_path,
             media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
             filename=f"merged_{file.filename}",
-            background=lambda: cleanup_files([temp_input_path, temp_output_path])
+            background=background_tasks
         )
 
     except Exception as e:
         return {"error": str(e)}
-    
+
 
 def cleanup_files(paths):
     for path in paths:
