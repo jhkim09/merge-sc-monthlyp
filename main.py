@@ -38,21 +38,21 @@ async def merge_sc_monthlyp(background_tasks: BackgroundTasks, file: UploadFile 
         with pd.ExcelWriter(temp_output_path, engine="openpyxl") as writer:
             merged.to_excel(writer, sheet_name="Sheet2", index=False)
 
-        # 백그라운드로 임시 파일 삭제 등록
-        background_tasks.add_task(cleanup_files, [temp_input_path, temp_output_path])
+        # 백그라운드로 임시 파일 삭제 등록 (일시 주석 처리)
+        # background_tasks.add_task(cleanup_files, [temp_input_path, temp_output_path])
 
         return FileResponse(
             temp_output_path,
             media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-            filename=f"merged_{file.filename}",
-            background=background_tasks
+            filename=f"merged_{file.filename}"
+            # , background=background_tasks  # 주석 처리
         )
 
     except Exception as e:
         return {"error": str(e)}
 
 
-def cleanup_files(paths):
-    for path in paths:
-        if os.path.exists(path):
-            os.remove(path)
+# def cleanup_files(paths):
+#     for path in paths:
+#         if os.path.exists(path):
+#             os.remove(path)
