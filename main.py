@@ -31,21 +31,9 @@ async def merge_sc_monthlyp(background_tasks: BackgroundTasks, file: UploadFile 
         if sheet1 is None:
             return {"error": "Sheet1 시트를 찾을 수 없습니다."}
 
-        # Rival 시트에서 컬럼 행 자동 탐색
-        temp_df = pd.read_excel(temp_input_path, sheet_name="Rival", header=None)
-        header_row_index = None
-        for i, row in temp_df.iterrows():
-            if any(str(cell).strip().lower() in ["코드", "code"] for cell in row):
-                header_row_index = i
-                break
-
-        if header_row_index is None:
-            return {"error": "Rival 시트에서 '코드' 또는 'Code' 컬럼을 찾을 수 없습니다."}
-
-        rival_df = pd.read_excel(temp_input_path, sheet_name="Rival", header=header_row_index)
+        rival_df = pd.read_excel(temp_input_path, sheet_name="Rival")
 
         sheet1.columns = [str(c).strip() for c in sheet1.columns]
-        print(f"[DEBUG] Sheet1 columns: {sheet1.columns.tolist()}")
         code_col = next((col for col in sheet1.columns if col.strip().lower() == 'code'), None)
         if not code_col:
             return {"error": "Sheet1에 정확한 'Code' 컬럼이 없습니다."}
@@ -53,13 +41,6 @@ async def merge_sc_monthlyp(background_tasks: BackgroundTasks, file: UploadFile 
         sheet1 = sheet1.dropna(subset=[code_col, "월초P(KRW)"]).copy()
         sheet1[code_col] = sheet1[code_col].apply(normalize_code)
         code_to_p = sheet1.set_index(code_col)["월초P(KRW)"].to_dict()
-
-        print(f"[DEBUG] code_to_p keys (sample): {list(code_to_p.keys())[:10]}")
-
-        rival_df.columns = [str(c).strip() for c in rival_df.columns]
-        rival_code_col = next((col for col in rival_df.columns if '코드' in col or 'Code' in col), None)
-        if not rival_code_col:
-            return {"error": "Rival 시트에 '코드' 또는 'Code' 컬럼이 없습니다."}
 
         wb = load_workbook(temp_input_path)
         if "Rival" not in wb.sheetnames:
@@ -70,29 +51,27 @@ async def merge_sc_monthlyp(background_tasks: BackgroundTasks, file: UploadFile 
 
         updated_count = 0
 
+        # 각 행에서 두 사람의 데이터를 분리해 처리
         for idx, row in rival_df.fillna("").iterrows():
-            row_values = row.astype(str).tolist()
-            target_code = normalize_code(row[rival_code_col])
-            if not target_code:
-                print(f"[SKIP] Empty code at row {idx}")
-                continue
-            print(f"[DEBUG] target_code: '{target_code}'")
-            print(f"[DEBUG] Row {idx} values: {row_values}")
+            row_values = row.tolist()
+            for i in range(2):  # 0번째 사람, 1번째 사람
+                offset = i * 13  # 한 사람당 컬럼 수 (예시 기준)
+                try:
+                    raw_code = row_values[offset + 2]  # 코드 위치 (예시)
+                    code = normalize_code(raw_code)
+                    total_col_index = offset + 6  # Total 위치 (예시)
 
-            if any("total" in str(v).strip().lower() for v in row_values):
-                if target_code in code_to_p:
-                    print(f"[MATCH] Code: '{target_code}' → {code_to_p[target_code]}")
-                    for col in rival_df.columns:
-                        if str(row[col]).strip().lower() == "total":
-                            col_index = rival_df.columns.get_loc(col) + 1
-                            excel_row = idx + header_row_index + 2
-                            value_to_set = code_to_p[target_code]
-                            ws.cell(row=excel_row, column=col_index).value = value_to_set
-                            ws.cell(row=excel_row, column=col_index).fill = yellow_fill
-                            updated_count += 1
-                            break
-                else:
-                    print(f"[MISS]  Code not found: '{target_code}'")
+                    if code and code in code_to_p:
+                        print(f"[MATCH] Code: '{code}' → {code_to_p[code]}")
+                        excel_row = idx + 2  # 1-based indexing + header
+                        excel_col = total_col_index + 1
+                        ws.cell(row=excel_row, column=excel_col).value = code_to_p[code]
+                        ws.cell(row=excel_row, column=excel_col).fill = yellow_fill
+                        updated_count += 1
+                    else:
+                        print(f"[MISS]  Code not found or empty: '{code}'")
+                except Exception as e:
+                    print(f"[ERROR] Row {idx}, Person {i}: {e}")
 
         print(f"[RESULT] Total updated cells: {updated_count}")
 
