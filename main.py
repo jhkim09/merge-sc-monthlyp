@@ -42,6 +42,10 @@ async def merge_sc_monthlyp(background_tasks: BackgroundTasks, file: UploadFile 
 
         sheet1 = sheet1.dropna(subset=[code_col, monthlyp_col, lump_col]).copy()
         sheet1[code_col] = sheet1[code_col].apply(normalize_code)
+
+        # 쉼표 제거 후 숫자로 변환
+        sheet1[lump_col] = sheet1[lump_col].astype(str).str.replace(",", "").astype(float)
+
         sheet1["lump_bonus"] = sheet1[lump_col] / 200
         sheet1["total_calc"] = sheet1[monthlyp_col] + sheet1["lump_bonus"]
         code_to_p = sheet1.set_index(code_col)["total_calc"].to_dict()
