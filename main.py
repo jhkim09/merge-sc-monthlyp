@@ -7,6 +7,7 @@ from uuid import uuid4
 from openpyxl import load_workbook
 from openpyxl.styles import PatternFill
 from io import BytesIO
+from urllib.parse import quote
 
 app = FastAPI()
 
@@ -87,10 +88,11 @@ async def merge_sc_monthlyp(background_tasks: BackgroundTasks, file: UploadFile 
 
         background_tasks.add_task(cleanup_files, [temp_input_path])
 
+        safe_filename = quote(f"merged_{file.filename}")
         return StreamingResponse(
             output,
             media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-            headers={"Content-Disposition": f"attachment; filename=merged_{file.filename}"}
+            headers={"Content-Disposition": f"attachment; filename*=UTF-8''{safe_filename}"}
         )
 
     except Exception as e:
