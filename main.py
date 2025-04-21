@@ -6,12 +6,7 @@ import os
 from uuid import uuid4
 from openpyxl import load_workbook
 from openpyxl.styles import PatternFill
-import logging
 from io import BytesIO
-
-# Logger 설정
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
 
 app = FastAPI()
 
@@ -60,7 +55,7 @@ async def merge_sc_monthlyp(background_tasks: BackgroundTasks, file: UploadFile 
 
             if any("total" in str(v).strip().lower() for v in row_values):
                 if target_code in code_to_p:
-                    logger.info(f"✔️ 코드 매칭: {target_code} → {code_to_p[target_code]}")
+                    print(f"✔️ 코드 매칭: {target_code} → {code_to_p[target_code]}")
                     for col in rival_df.columns:
                         if str(row[col]).strip().lower() == "total":
                             col_index = rival_df.columns.get_loc(col) + 1
@@ -71,11 +66,10 @@ async def merge_sc_monthlyp(background_tasks: BackgroundTasks, file: UploadFile 
                             updated_count += 1
                             break
                 else:
-                    logger.warning(f"❌ 코드 없음: {target_code}")
+                    print(f"❌ 코드 없음: {target_code}")
 
-        logger.info(f"✅ 총 {updated_count}개의 Total 셀이 업데이트되었습니다.")
+        print(f"✅ 총 {updated_count}개의 Total 셀이 업데이트되었습니다.")
 
-        # 메모리에 저장
         output = BytesIO()
         wb.save(output)
         output.seek(0)
@@ -89,7 +83,7 @@ async def merge_sc_monthlyp(background_tasks: BackgroundTasks, file: UploadFile 
         )
 
     except Exception as e:
-        logger.error(f"처리 중 오류 발생: {str(e)}")
+        print(f"❌ 처리 중 오류 발생: {str(e)}")
         return {"error": str(e)}
 
 
