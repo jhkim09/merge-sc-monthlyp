@@ -27,6 +27,16 @@ async def merge_sc_monthlyp(background_tasks: BackgroundTasks, file: UploadFile 
         if sheet1 is None or sheet2 is None:
             return {"error": "Sheet1 또는 Sheet2가 존재하지 않습니다."}
 
+        # 필수 컬럼 확인
+        expected_cols = ["Code", "SC", "월초P(KRW)"]
+        missing = [col for col in expected_cols if col not in sheet1.columns]
+        if missing:
+            return {"error": f"Sheet1에 다음 컬럼이 없습니다: {missing}"}
+
+        # Code 컬럼을 문자열로 변환 (병합 오류 방지)
+        sheet1["Code"] = sheet1["Code"].astype(str)
+        sheet2["Code"] = sheet2["Code"].astype(str)
+
         # 필요한 컬럼만 추출
         sheet1_filtered = sheet1[["Code", "SC", "월초P(KRW)"]]
         sheet1_filtered = sheet1_filtered.rename(columns={"월초P(KRW)": "월초P"})
