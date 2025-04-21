@@ -77,6 +77,7 @@ async def merge_sc_monthlyp(background_tasks: BackgroundTasks, file: UploadFile 
                 print(f"[SKIP] Empty code at row {idx}")
                 continue
             print(f"[DEBUG] target_code: '{target_code}'")
+            print(f"[DEBUG] Row {idx} values: {row_values}")
 
             if any("total" in str(v).strip().lower() for v in row_values):
                 if target_code in code_to_p:
