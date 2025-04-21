@@ -4,6 +4,8 @@ import pandas as pd
 import shutil
 import os
 from uuid import uuid4
+from openpyxl import load_workbook
+from openpyxl.styles import PatternFill
 
 app = FastAPI()
 
@@ -19,7 +21,7 @@ async def merge_sc_monthlyp(background_tasks: BackgroundTasks, file: UploadFile 
         shutil.copyfileobj(file.file, buffer)
 
     try:
-        # 엑셀 파일 읽기
+        # 엑셀 파일 읽기 (데이터 분석용)
         excel_data = pd.read_excel(temp_input_path, sheet_name=None)
         sheet1 = excel_data.get("Sheet1")
         rival = excel_data.get("Rival")
@@ -28,13 +30,13 @@ async def merge_sc_monthlyp(background_tasks: BackgroundTasks, file: UploadFile 
             return {"error": "Sheet1 또는 Rival 시트가 존재하지 않습니다."}
 
         # Code, 월초P 정보 딕셔너리로 구성
-        sheet1 = sheet1.dropna(subset=["Code", "월초P(KRW)"])
+        sheet1 = sheet1.dropna(subset=["Code", "월초P(KRW)"]).copy()
         sheet1["Code"] = sheet1["Code"].astype(str)
         code_to_p = sheet1.set_index("Code")["월초P(KRW)"].to_dict()
 
         # Rival 시트 처리
         rival_filled = rival.fillna("")
-        updated_rows = 0
+        updated_cells = []
         codes = []
 
         for idx, row in rival_filled.iterrows():
@@ -54,14 +56,22 @@ async def merge_sc_monthlyp(background_tasks: BackgroundTasks, file: UploadFile 
                     for col in rival.columns:
                         if str(row[col]).strip() == "Total":
                             rival.at[idx, col] = code_to_p[target_code]
-                            updated_rows += 1
+                            updated_cells.append((idx, col))
                             break
                 codes = []  # 다음 사람 준비
 
-        # 저장
-        with pd.ExcelWriter(temp_output_path, engine="openpyxl") as writer:
-            sheet1.to_excel(writer, sheet_name="Sheet1", index=False)
-            rival.to_excel(writer, sheet_name="Rival", index=False)
+        # 원본 엑셀 로드 (전체 시트 보존용)
+        wb = load_workbook(temp_input_path)
+        if "Rival" in wb.sheetnames:
+            ws = wb["Rival"]
+            yellow_fill = PatternFill(start_color="FFFF00", end_color="FFFF00", fill_type="solid")
+            for idx, col_name in updated_cells:
+                col_index = rival.columns.get_loc(col_name) + 1
+                excel_row = idx + 2  # header + 1 indexing
+                ws.cell(row=excel_row, column=col_index).value = code_to_p.get(codes[0], "")
+                ws.cell(row=excel_row, column=col_index).fill = yellow_fill
+
+        wb.save(temp_output_path)
 
         # 삭제 예약
         background_tasks.add_task(cleanup_files, [temp_input_path, temp_output_path])
