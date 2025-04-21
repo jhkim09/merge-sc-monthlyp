@@ -51,25 +51,28 @@ async def merge_sc_monthlyp(background_tasks: BackgroundTasks, file: UploadFile 
 
         updated_count = 0
 
-        # 각 행에서 두 사람의 데이터를 분리해 처리
-        for idx, row in rival_df.fillna("").iterrows():
-            row_values = row.tolist()
-            for i in range(2):  # 0번째 사람, 1번째 사람
-                offset = i * 13  # 한 사람당 컬럼 수 (예시 기준)
+        rival_columns = rival_df.columns.tolist()
+        for idx, row in rival_df.iterrows():
+            for i in range(2):
                 try:
-                    raw_code = row_values[offset + 2]  # 코드 위치 (예시)
-                    code = normalize_code(raw_code)
-                    total_col_index = offset + 6  # Total 위치 (예시)
+                    start = i * (len(rival_columns) // 2)
+                    end = (i + 1) * (len(rival_columns) // 2)
+                    person_data = row.iloc[start:end]
+                    person_data.index = rival_columns[start:end]  # 컬럼명 붙이기
 
-                    if code and code in code_to_p:
-                        print(f"[MATCH] Code: '{code}' → {code_to_p[code]}")
-                        excel_row = idx + 2  # 1-based indexing + header
-                        excel_col = total_col_index + 1
+                    code = normalize_code(person_data.get("Code", ""))
+                    total_col_name = "Total"
+
+                    if code and code in code_to_p and total_col_name in person_data:
+                        col_index = start + list(rival_columns[start:end]).index(total_col_name)
+                        excel_row = idx + 2
+                        excel_col = col_index + 1
                         ws.cell(row=excel_row, column=excel_col).value = code_to_p[code]
                         ws.cell(row=excel_row, column=excel_col).fill = yellow_fill
                         updated_count += 1
+                        print(f"[MATCH] Code: '{code}' → {code_to_p[code]}")
                     else:
-                        print(f"[MISS]  Code not found or empty: '{code}'")
+                        print(f"[MISS]  Code not found or missing Total column: '{code}'")
                 except Exception as e:
                     print(f"[ERROR] Row {idx}, Person {i}: {e}")
 
