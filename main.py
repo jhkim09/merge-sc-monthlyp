@@ -11,6 +11,12 @@ from urllib.parse import quote
 
 app = FastAPI()
 
+def normalize_code(value):
+    try:
+        return str(int(float(value))).strip()
+    except:
+        return str(value).strip()
+
 @app.post("/merge-sc-monthlyp/")
 async def merge_sc_monthlyp(background_tasks: BackgroundTasks, file: UploadFile = File(...)):
     unique_id = uuid4().hex
@@ -44,7 +50,7 @@ async def merge_sc_monthlyp(background_tasks: BackgroundTasks, file: UploadFile 
             return {"error": "Sheet1에 'Code' 또는 '코드' 컬럼이 없습니다."}
 
         sheet1 = sheet1.dropna(subset=[code_col, "월초P(KRW)"]).copy()
-        sheet1[code_col] = sheet1[code_col].astype(str)
+        sheet1[code_col] = sheet1[code_col].apply(normalize_code)
         code_to_p = sheet1.set_index(code_col)["월초P(KRW)"].to_dict()
 
         rival_df.columns = [str(c).strip() for c in rival_df.columns]
@@ -63,8 +69,7 @@ async def merge_sc_monthlyp(background_tasks: BackgroundTasks, file: UploadFile 
 
         for idx, row in rival_df.fillna("").iterrows():
             row_values = row.astype(str).tolist()
-            raw_code = row[rival_code_col]
-            target_code = str(int(raw_code)).strip() if isinstance(raw_code, float) else str(raw_code).strip()
+            target_code = normalize_code(row[rival_code_col])
 
             if any("total" in str(v).strip().lower() for v in row_values):
                 if target_code in code_to_p:
