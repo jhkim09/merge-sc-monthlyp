@@ -6,6 +6,11 @@ import os
 from uuid import uuid4
 from openpyxl import load_workbook
 from openpyxl.styles import PatternFill
+import logging
+
+# Logger 설정
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 app = FastAPI()
 
@@ -53,7 +58,7 @@ async def merge_sc_monthlyp(background_tasks: BackgroundTasks, file: UploadFile 
 
             if any("total" in str(v).strip().lower() for v in row_values):
                 if target_code in code_to_p:
-                    print(f"✔️ 코드 매칭: {target_code} → {code_to_p[target_code]}")
+                    logger.info(f"✔️ 코드 매칭: {target_code} → {code_to_p[target_code]}")
                     for col in rival_df.columns:
                         if str(row[col]).strip().lower() == "total":
                             col_index = rival_df.columns.get_loc(col) + 1
@@ -63,7 +68,7 @@ async def merge_sc_monthlyp(background_tasks: BackgroundTasks, file: UploadFile 
                             ws.cell(row=excel_row, column=col_index).fill = yellow_fill
                             break
                 else:
-                    print(f"❌ 코드 없음: {target_code}")
+                    logger.warning(f"❌ 코드 없음: {target_code}")
 
         wb.save(temp_output_path)
         background_tasks.add_task(cleanup_files, [temp_input_path, temp_output_path])
@@ -76,6 +81,7 @@ async def merge_sc_monthlyp(background_tasks: BackgroundTasks, file: UploadFile 
         )
 
     except Exception as e:
+        logger.error(f"처리 중 오류 발생: {str(e)}")
         return {"error": str(e)}
 
 
