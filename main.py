@@ -66,7 +66,7 @@ async def merge_sc_monthlyp(background_tasks: BackgroundTasks, file: UploadFile 
 
             if any("total" in str(v).strip().lower() for v in row_values):
                 if target_code in code_to_p:
-                    print(f"✔️ 코드 매칭: {target_code} → {code_to_p[target_code]}")
+                    print(f"[MATCH] Code: {target_code} → {code_to_p[target_code]}")
                     for col in rival_df.columns:
                         if str(row[col]).strip().lower() == "total":
                             col_index = rival_df.columns.get_loc(col) + 1
@@ -77,9 +77,9 @@ async def merge_sc_monthlyp(background_tasks: BackgroundTasks, file: UploadFile 
                             updated_count += 1
                             break
                 else:
-                    print(f"❌ 코드 없음: {target_code}")
+                    print(f"[MISS]  Code not found: {target_code}")
 
-        print(f"✅ 총 {updated_count}개의 Total 셀이 업데이트되었습니다.")
+        print(f"[RESULT] Total updated cells: {updated_count}")
 
         output = BytesIO()
         wb.save(output)
@@ -94,7 +94,7 @@ async def merge_sc_monthlyp(background_tasks: BackgroundTasks, file: UploadFile 
         )
 
     except Exception as e:
-        print(f"❌ 처리 중 오류 발생: {str(e)}")
+        print(f"[ERROR] {str(e)}")
         return {"error": str(e)}
 
 
