@@ -61,25 +61,25 @@ async def merge_sc_monthlyp(background_tasks: BackgroundTasks, file: UploadFile 
                     person_data = row.iloc[start:end]
                     person_data.index = rival_columns[start:end]  # 컬럼명 붙이기
 
-                    print(f"[DEBUG] Person {i} columns: {rival_columns[start:end]}")
-
-                    # 코드 및 Total 컬럼 자동 탐지
                     code_key = next((k for k in person_data.keys() if '코드' in str(k).lower() or 'code' in str(k).lower()), None)
                     total_key = next((k for k in person_data.keys() if 'total' in str(k).lower()), None)
 
                     code = normalize_code(person_data.get(code_key, "")) if code_key else ""
-                    print(f"[DEBUG] Code value: '{code}'")
-                    print(f"[DEBUG] Is in code_to_p: {code in code_to_p}")
-                    print(f"[DEBUG] Total key: {total_key}")
 
                     if code and code in code_to_p and total_key:
-                        col_index = start + list(rival_columns[start:end]).index(total_key)
+                        try:
+                            col_index = start + list(rival_columns[start:end]).index(total_key)
+                        except ValueError:
+                            print(f"[SKIP] Could not find Total column in current block")
+                            continue
+
                         excel_row = idx + 28  # 실제 엑셀 기준 행 번호 보정
                         excel_col = col_index + 1
+
                         ws.cell(row=excel_row, column=excel_col).value = code_to_p[code]
                         ws.cell(row=excel_row, column=excel_col).fill = yellow_fill
                         updated_count += 1
-                        print(f"[MATCH] Code: '{code}' → {code_to_p[code]}")
+                        print(f"[MATCH] Code: '{code}' → {code_to_p[code]} @ col {excel_col}")
                     else:
                         print(f"[MISS]  Code not found or missing Total column: '{code}'")
                 except Exception as e:
