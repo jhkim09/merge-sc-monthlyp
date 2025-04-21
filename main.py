@@ -5,7 +5,7 @@ import shutil
 import os
 from uuid import uuid4
 from openpyxl import load_workbook
-from openpyxl.styles import PatternFill
+from openpyxl.styles import PatternFill, Font
 from io import BytesIO
 from urllib.parse import quote
 
@@ -49,27 +49,38 @@ async def merge_sc_monthlyp(background_tasks: BackgroundTasks, file: UploadFile 
 
         ws = wb["Rival"]
         yellow_fill = PatternFill(start_color="FFFF00", end_color="FFFF00", fill_type="solid")
+        red_font = Font(color="FF0000")
 
         updated_count = 0
 
         for idx, row in rival_df.iterrows():
-            # 좌측 인원: 열 I(8), Total = O(14)
             left_code = normalize_code(row.iloc[8])
-            if left_code in code_to_p:
-                ws.cell(row=idx + 28, column=15).value = code_to_p[left_code]  # O열 = 15
+            right_code = normalize_code(row.iloc[17])
+            left_value = code_to_p.get(left_code)
+            right_value = code_to_p.get(right_code)
+
+            # 좌측 Total = O열 (15), 우측 Total = X열 (24)
+            if left_value is not None:
+                ws.cell(row=idx + 28, column=15).value = left_value
                 ws.cell(row=idx + 28, column=15).fill = yellow_fill
+            if right_value is not None:
+                ws.cell(row=idx + 28, column=24).value = right_value
+                ws.cell(row=idx + 28, column=24).fill = yellow_fill
+
+            if left_value is not None and right_value is not None:
+                if left_value > right_value:
+                    ws.cell(row=idx + 28, column=15).font = red_font
+                elif right_value > left_value:
+                    ws.cell(row=idx + 28, column=24).font = red_font
+
+            if left_value is not None:
                 updated_count += 1
-                print(f"[MATCH-LEFT] Code: {left_code} → {code_to_p[left_code]}")
+                print(f"[MATCH-LEFT] Code: {left_code} → {left_value}")
             else:
                 print(f"[MISS-LEFT] Code: {left_code}")
-
-            # 우측 인원: 열 R(17), Code = R(17), Total = X(24)
-            right_code = normalize_code(row.iloc[17])
-            if right_code in code_to_p:
-                ws.cell(row=idx + 28, column=24).value = code_to_p[right_code]  # X열 = 24
-                ws.cell(row=idx + 28, column=24).fill = yellow_fill
+            if right_value is not None:
                 updated_count += 1
-                print(f"[MATCH-RIGHT] Code: {right_code} → {code_to_p[right_code]}")
+                print(f"[MATCH-RIGHT] Code: {right_code} → {right_value}")
             else:
                 print(f"[MISS-RIGHT] Code: {right_code}")
 
