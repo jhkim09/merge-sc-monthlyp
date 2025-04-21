@@ -51,15 +51,19 @@ async def merge_sc_monthlyp(background_tasks: BackgroundTasks, file: UploadFile 
             row_values = row.astype(str).tolist()
             target_code = str(row[rival_code_col]).strip()
 
-            if any("total" in str(v).strip().lower() for v in row_values) and target_code in code_to_p:
-                for col in rival_df.columns:
-                    if str(row[col]).strip().lower() == "total":
-                        col_index = rival_df.columns.get_loc(col) + 1
-                        excel_row = idx + 2
-                        value_to_set = code_to_p[target_code]
-                        ws.cell(row=excel_row, column=col_index).value = value_to_set
-                        ws.cell(row=excel_row, column=col_index).fill = yellow_fill
-                        break
+            if any("total" in str(v).strip().lower() for v in row_values):
+                if target_code in code_to_p:
+                    print(f"✔️ 코드 매칭: {target_code} → {code_to_p[target_code]}")
+                    for col in rival_df.columns:
+                        if str(row[col]).strip().lower() == "total":
+                            col_index = rival_df.columns.get_loc(col) + 1
+                            excel_row = idx + 2
+                            value_to_set = code_to_p[target_code]
+                            ws.cell(row=excel_row, column=col_index).value = value_to_set
+                            ws.cell(row=excel_row, column=col_index).fill = yellow_fill
+                            break
+                else:
+                    print(f"❌ 코드 없음: {target_code}")
 
         wb.save(temp_output_path)
         background_tasks.add_task(cleanup_files, [temp_input_path, temp_output_path])
