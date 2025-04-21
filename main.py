@@ -11,17 +11,14 @@ app = FastAPI()
 
 @app.post("/merge-sc-monthlyp/")
 async def merge_sc_monthlyp(background_tasks: BackgroundTasks, file: UploadFile = File(...)):
-    # 임시 파일 이름 생성
     unique_id = uuid4().hex
     temp_input_path = f"/tmp/{unique_id}_{file.filename}"
     temp_output_path = f"/tmp/merged_{unique_id}_{file.filename}"
 
-    # 파일 저장
     with open(temp_input_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
 
     try:
-        # 엑셀 파일 읽기 (데이터 분석용)
         excel_data = pd.read_excel(temp_input_path, sheet_name=None)
         sheet1 = excel_data.get("Sheet1")
         rival = excel_data.get("Rival")
@@ -29,51 +26,46 @@ async def merge_sc_monthlyp(background_tasks: BackgroundTasks, file: UploadFile 
         if sheet1 is None or rival is None:
             return {"error": "Sheet1 또는 Rival 시트가 존재하지 않습니다."}
 
-        # Code, 월초P 정보 딕셔너리로 구성
-        sheet1 = sheet1.dropna(subset=["Code", "월초P(KRW)"]).copy()
-        sheet1["Code"] = sheet1["Code"].astype(str)
-        code_to_p = sheet1.set_index("Code")["월초P(KRW)"].to_dict()
+        sheet1.columns = [str(c).strip() for c in sheet1.columns]
+        code_col = next((col for col in sheet1.columns if '코드' in col or 'Code' in col), None)
+        if not code_col:
+            return {"error": "Sheet1에 'Code' 또는 '코드' 컬럼이 없습니다."}
 
-        # Rival 시트 처리
+        sheet1 = sheet1.dropna(subset=[code_col, "월초P(KRW)"]).copy()
+        sheet1[code_col] = sheet1[code_col].astype(str)
+        code_to_p = sheet1.set_index(code_col)["월초P(KRW)"].to_dict()
+
+        rival.columns = [str(c).strip() for c in rival.columns]
+        rival_code_col = next((col for col in rival.columns if '코드' in col or 'Code' in col), None)
+        if not rival_code_col:
+            return {"error": "Rival 시트에 '코드' 또는 'Code' 컬럼이 없습니다."}
+
         rival_filled = rival.fillna("")
         updated_cells = []
-        codes = []
 
         for idx, row in rival_filled.iterrows():
             row_values = row.astype(str).tolist()
+            target_code = str(row[rival_code_col]).strip()
 
-            if any("본부" in v for v in row_values):
-                codes = []  # 새로운 인물 시작
+            if any("total" in str(v).strip().lower() for v in row_values) and target_code in code_to_p:
+                for col in rival.columns:
+                    if str(row[col]).strip().lower() == "total":
+                        value_to_set = code_to_p[target_code]
+                        rival.at[idx, col] = value_to_set
+                        updated_cells.append((idx, col, value_to_set))
+                        break
 
-            # 코드 수집
-            for val in row_values:
-                if val.strip().isdigit():
-                    codes.append(val.strip())
-
-            if any("Total" in v for v in row_values) and codes:
-                target_code = codes[0]  # 첫 번째 코드만 기준으로 사용
-                if target_code in code_to_p:
-                    for col in rival.columns:
-                        if str(row[col]).strip() == "Total":
-                            rival.at[idx, col] = code_to_p[target_code]
-                            updated_cells.append((idx, col, code_to_p[target_code]))
-                            break
-                codes = []  # 다음 사람 준비
-
-        # 원본 엑셀 로드 (전체 시트 보존용)
         wb = load_workbook(temp_input_path)
         if "Rival" in wb.sheetnames:
             ws = wb["Rival"]
             yellow_fill = PatternFill(start_color="FFFF00", end_color="FFFF00", fill_type="solid")
             for idx, col_name, value in updated_cells:
                 col_index = rival.columns.get_loc(col_name) + 1
-                excel_row = idx + 2  # header + 1 indexing
+                excel_row = idx + 2
                 ws.cell(row=excel_row, column=col_index).value = value
                 ws.cell(row=excel_row, column=col_index).fill = yellow_fill
 
         wb.save(temp_output_path)
-
-        # 삭제 예약
         background_tasks.add_task(cleanup_files, [temp_input_path, temp_output_path])
 
         return FileResponse(
