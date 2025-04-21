@@ -5,7 +5,7 @@ import shutil
 import os
 from uuid import uuid4
 from openpyxl import load_workbook
-from openpyxl.styles import PatternFill, Font
+from openpyxl.styles import PatternFill, Font, numbers
 from io import BytesIO
 from urllib.parse import quote
 
@@ -70,11 +70,16 @@ async def merge_sc_monthlyp(background_tasks: BackgroundTasks, file: UploadFile 
             right_bonus = code_to_bonus.get(right_code)
 
             if left_value is not None:
-                ws.cell(row=idx + 28, column=15).value = left_value
-                ws.cell(row=idx + 28, column=15).fill = yellow_fill
+                left_cell = ws.cell(row=idx + 28, column=15)
+                left_cell.value = left_value
+                left_cell.fill = yellow_fill
+                left_cell.number_format = numbers.FORMAT_NUMBER_COMMA_SEPARATED1
+
             if right_value is not None:
-                ws.cell(row=idx + 28, column=24).value = right_value
-                ws.cell(row=idx + 28, column=24).fill = yellow_fill
+                right_cell = ws.cell(row=idx + 28, column=24)
+                right_cell.value = right_value
+                right_cell.fill = yellow_fill
+                right_cell.number_format = numbers.FORMAT_NUMBER_COMMA_SEPARATED1
 
             # AA열: 27번 열에 일시납/200 표시
             if left_bonus is not None:
