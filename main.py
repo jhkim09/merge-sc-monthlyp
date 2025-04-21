@@ -63,15 +63,17 @@ async def merge_sc_monthlyp(background_tasks: BackgroundTasks, file: UploadFile 
 
                     print(f"[DEBUG] Person {i} columns: {rival_columns[start:end]}")
 
-                    code = normalize_code(person_data.get("Code", ""))
+                    # 코드 및 Total 컬럼 자동 탐지
+                    code_key = next((k for k in person_data.keys() if '코드' in str(k).lower() or 'code' in str(k).lower()), None)
+                    total_key = next((k for k in person_data.keys() if 'total' in str(k).lower()), None)
+
+                    code = normalize_code(person_data.get(code_key, "")) if code_key else ""
                     print(f"[DEBUG] Code value: '{code}'")
                     print(f"[DEBUG] Is in code_to_p: {code in code_to_p}")
+                    print(f"[DEBUG] Total key: {total_key}")
 
-                    total_col_name = "Total"
-                    print(f"[DEBUG] Total exists: {total_col_name in person_data}")
-
-                    if code and code in code_to_p and total_col_name in person_data:
-                        col_index = start + list(rival_columns[start:end]).index(total_col_name)
+                    if code and code in code_to_p and total_key:
+                        col_index = start + list(rival_columns[start:end]).index(total_key)
                         excel_row = idx + 28  # 실제 엑셀 기준 행 번호 보정
                         excel_col = col_index + 1
                         ws.cell(row=excel_row, column=excel_col).value = code_to_p[code]
